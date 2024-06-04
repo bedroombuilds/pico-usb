@@ -1,11 +1,13 @@
 //! example of using RTIC to communicate over serial port and blink LED
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
 use panic_probe as _;
+
+use rtic_monotonics::rp2040::prelude::*;
+rp2040_timer_monotonic!(Mono);
 
 defmt::timestamp! {"{=u64}", {
     static COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -18,24 +20,31 @@ defmt::timestamp! {"{=u64}", {
 
 #[rtic::app(device = rp_pico::hal::pac, peripherals = true, dispatchers = [XIP_IRQ])]
 mod app {
+    use super::*;
+
     use core::mem::MaybeUninit;
-    use defmt::*;
+    use defmt::{debug, error, info};
     use embedded_hal::digital::v2::ToggleableOutputPin;
+    use rp2040_hal::gpio::bank0::Gpio25;
+    use rp2040_hal::gpio::DefaultTypeState;
     use rp_pico::{
         hal::{
             clocks::init_clocks_and_plls,
-            gpio::{pin::bank0::*, Pin, Pins, PushPullOutput},
+            gpio::{Pin, Pins},
             usb::UsbBus,
             watchdog::Watchdog,
             Sio,
         },
         XOSC_CRYSTAL_FREQ,
     };
-    use rtic_monotonics::rp2040::*;
     use usb_device::{class_prelude::*, prelude::*};
     use usbd_serial::SerialPort;
 
-    type LedPin = Pin<Gpio25, PushPullOutput>;
+    type LedPin = Pin<
+        Gpio25,
+        rp2040_hal::gpio::FunctionSio<rp2040_hal::gpio::SioOutput>,
+        <Gpio25 as DefaultTypeState>::PullType,
+    >;
 
     #[shared]
     struct Shared {
@@ -55,8 +64,8 @@ mod app {
     #[init(local = [usb_bus: MaybeUninit<UsbBusAllocator<UsbBus>> = MaybeUninit::uninit()])]
     fn init(c: init::Context) -> (Shared, Local) {
         let mut resets = c.device.RESETS;
-        let monotoken = rtic_monotonics::create_rp2040_monotonic_token!();
-        Timer::start(c.device.TIMER, &mut resets, monotoken);
+        // Start the monotonic
+        Mono::start(c.device.TIMER, &resets);
         let mut watchdog = Watchdog::new(c.device.WATCHDOG);
         let clocks = init_clocks_and_plls(
             XOSC_CRYSTAL_FREQ,
@@ -89,11 +98,15 @@ mod app {
         )));
         let serial = SerialPort::new(usb_bus);
 
-        let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
+        let usb_desc = usb_device::device::StringDescriptors::default()
             .manufacturer("Bedroom Builds")
             .product("Serial port")
-            .serial_number("RTIC")
+            .serial_number("RTIC");
+
+        let usb_dev = UsbDeviceBuilder::new(usb_bus, UsbVidPid(0x16c0, 0x27dd))
             .device_class(usbd_serial::USB_CLASS_CDC)
+            .strings(&[usb_desc])
+            .unwrap()
             .build();
 
         let led_blink = true;
@@ -129,7 +142,7 @@ mod app {
                 }
                 pause = *led_pause;
             });
-            Timer::delay((pause as u64).millis()).await;
+            Mono::delay((pause as u64).millis()).await;
         }
     }
 

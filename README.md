@@ -14,6 +14,8 @@ Video of the presentation: [Introduction to Rust programming on bare metal hardw
 Ater setting up a working [Rust environment](https://rustup.rs/) including nightly compiler:
 
 ```shell
+# on Linux install build dependencies
+apt install libudev-dev
 # install compilation targets
 rustup target add thumbv6m-none-eabi
 rustup target add --toolchain nightly thumbv6m-none-eabi

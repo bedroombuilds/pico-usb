@@ -27,6 +27,10 @@ target = "thumbv6m-none-eabi"
 [env]
 DEFMT_LOG = "debug"
 
+# thumbv6m-none-eabi is not coming with core and alloc, compile myself
 [unstable]
 mtime-on-use = true
-build-std = ["core", "alloc"]
+# either run `rustup target add --toolchain nightly thumbv6m-none-eabi`
+# or uncomment the next line to build core yourself, self-buildings allows LTO
+# to optimise better
+# build-std = [ "core"]

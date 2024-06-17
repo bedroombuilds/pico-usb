@@ -25,10 +25,9 @@ cargo install flip-link
 # Useful to creating UF2 images for the RP2040 USB Bootloader
 cargo install elf2uf2-rs --locked
 # Useful for flashing over the SWD pins using a supported JTAG probe
+# probe-rs-tools also contains cargo-embed a comfortable way of executing firmware and looking at logs
 cargo install cargo-binstall
 cargo binstall probe-rs-tools
-# most comfortable way of running and looking at logs
-cargo install cargo-embed
 ```
 
 For other ways to install `probe-rs` see their [installation docs](https://probe.rs/docs/getting-started/installation/)
